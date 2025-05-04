@@ -4,6 +4,7 @@ import (
 	"os"
 
 	"github.com/infocus7/imp/cmd/convert/audio"
+	"github.com/infocus7/imp/cmd/convert/video"
 	"github.com/infocus7/imp/utils"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
@@ -29,4 +30,5 @@ var ConvertCmd = &cobra.Command{
 
 func init() {
 	ConvertCmd.AddCommand(audio.AudioCmd)
+	ConvertCmd.AddCommand(video.VideoCmd)
 }

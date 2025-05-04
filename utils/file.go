@@ -5,24 +5,27 @@ import (
 	"strings"
 )
 
-var supportedAudioExtensions = map[string]struct{}{
+var SupportedAudioExtensions = map[string]struct{}{
 	".wav": {},
 	".mp3": {},
 }
 
-var supportedVideoExtensions = map[string]struct{}{
+var SupportedVideoExtensions = map[string]struct{}{
 	".mp4": {},
+	".mkv": {},
+	".avi": {},
 	".mov": {},
+	".wmv": {},
 }
 
 func IsAudioFile(file string) bool {
 	ext := filepath.Ext(file)
-	_, ok := supportedAudioExtensions[strings.ToLower(ext)]
+	_, ok := SupportedAudioExtensions[strings.ToLower(ext)]
 	return ok
 }
 
 func IsVideoFile(file string) bool {
 	ext := filepath.Ext(file)
-	_, ok := supportedVideoExtensions[strings.ToLower(ext)]
+	_, ok := SupportedVideoExtensions[strings.ToLower(ext)]
 	return ok
 }

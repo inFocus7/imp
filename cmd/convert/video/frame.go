@@ -117,7 +117,7 @@ func parseTime(timeStr string) (float64, error) {
 	return float64(hours*3600 + minutes*60 + seconds), nil
 }
 
-func interactiveSetup(inputFile string) (string, string, string, bool, int, int, bool, error) {
+func interactiveFrameSetup(inputFile string) (string, string, string, bool, int, int, bool, error) {
 	// Show video info
 	duration, err := getVideoDuration(inputFile)
 	if err != nil {
@@ -281,7 +281,7 @@ var frameCmd = &cobra.Command{
 		}
 
 		// Interactive setup
-		frameTime, outDir, filename, random, width, height, square, err := interactiveSetup(inputFile)
+		frameTime, outDir, filename, random, width, height, square, err := interactiveFrameSetup(inputFile)
 		if err != nil {
 			pterm.Error.Println(err)
 			return

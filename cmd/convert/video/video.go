@@ -1,6 +1,7 @@
 package video
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -11,11 +12,51 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	toFmt   string
-	outDir  string
-	outFile string
-)
+func interactiveVideoSetup(inputFile string) (string, string, string, error) {
+	// Get base name for default filename
+	baseName := strings.TrimSuffix(filepath.Base(inputFile), filepath.Ext(inputFile))
+	defaultOutDir := filepath.Dir(inputFile)
+
+	// Get output directory
+	outDir, _ := pterm.DefaultInteractiveTextInput.
+		WithDefaultText(defaultOutDir).
+		Show("Enter output directory (press Enter to use default)")
+
+	// If user just pressed Enter, use default
+	if outDir == "" {
+		outDir = defaultOutDir
+	}
+
+	// Ensure the directory exists
+	if err := os.MkdirAll(outDir, 0755); err != nil {
+		return "", "", "", fmt.Errorf("failed to create output directory: %v", err)
+	}
+
+	// Get output filename
+	filename, _ := pterm.DefaultInteractiveTextInput.
+		WithDefaultText(baseName).
+		Show("Enter output filename (without extension, press Enter to use default)")
+
+	// If user just pressed Enter, use default
+	if filename == "" {
+		filename = baseName
+	}
+
+	// Get output format, excluding the input file's format
+	inputExt := strings.ToLower(filepath.Ext(inputFile))
+	formatOptions := make([]string, 0, len(utils.SupportedVideoExtensions))
+	for ext := range utils.SupportedVideoExtensions {
+		if ext != inputExt {
+			formatOptions = append(formatOptions, strings.TrimPrefix(ext, "."))
+		}
+	}
+
+	toFmt, _ := pterm.DefaultInteractiveSelect.
+		WithOptions(formatOptions).
+		Show("Select output format")
+
+	return toFmt, outDir, filename, nil
+}
 
 var VideoCmd = &cobra.Command{
 	Use:   "video [file]",
@@ -36,32 +77,19 @@ var VideoCmd = &cobra.Command{
 			return
 		}
 
-		// Validate output format
-		if toFmt == "" {
-			pterm.Error.Println("Please specify an output format using --to")
-			return
-		}
-
-		if outDir == "" {
-			outDir = filepath.Dir(inputFile)
-		}
-
-		if outFile == "" {
-			outFile = filepath.Base(inputFile)
-			outFile = strings.TrimSuffix(outFile, filepath.Ext(outFile))
-		}
-
-		if err := os.MkdirAll(outDir, 0755); err != nil {
-			pterm.Error.Printf("Failed to create output directory: %v\n", err)
+		// Interactive setup
+		toFmt, outDir, filename, err := interactiveVideoSetup(inputFile)
+		if err != nil {
+			pterm.Error.Println(err)
 			return
 		}
 
 		pterm.Info.Printf("Converting %s to %s format...\n", inputFile, toFmt)
 		pterm.Info.Printf("Output will be saved in: %s\n", outDir)
-		pterm.Info.Printf("Output file will be: %s\n", filepath.Join(outDir, outFile+"."+toFmt))
+		pterm.Info.Printf("Output file will be: %s\n", filepath.Join(outDir, filename+"."+toFmt))
 
 		// Convert the file using ffmpeg
-		convertedFile := filepath.Join(outDir, outFile+"."+toFmt)
+		convertedFile := filepath.Join(outDir, filename+"."+toFmt)
 		convertCmd := exec.Command("ffmpeg", "-i", inputFile, "-c:v", "libx264", "-c:a", "aac", convertedFile)
 		if err := convertCmd.Run(); err != nil {
 			pterm.Error.Printf("Failed to convert file: %v\n", err)
@@ -73,10 +101,5 @@ var VideoCmd = &cobra.Command{
 }
 
 func init() {
-	VideoCmd.Flags().StringVarP(&toFmt, "to", "t", "", "The format to convert to (e.g., mp4)")
-	VideoCmd.Flags().StringVarP(&outDir, "dir", "d", "", "The output directory (defaults to input file directory)")
-	VideoCmd.Flags().StringVarP(&outFile, "file", "f", "", "The output file name (defaults to input file name, exclude extension)")
-
-	// Add frame subcommand
 	VideoCmd.AddCommand(frameCmd)
 }

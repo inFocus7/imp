@@ -43,6 +43,7 @@ func interactiveVideoSetup(inputFile string) (string, string, string, error) {
 	}
 
 	// Get output format, excluding the input file's format
+	// TODO: I may remove this filter if I want to allow for cropping of the input video... which i would to be ab le to make a shorts/portrait video
 	inputExt := strings.ToLower(filepath.Ext(inputFile))
 	formatOptions := make([]string, 0, len(utils.SupportedVideoExtensions))
 	for ext := range utils.SupportedVideoExtensions {

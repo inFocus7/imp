@@ -1,0 +1,95 @@
+name: Release
+run-name: Release ${{ github.event.release.tag_name }}
+
+on:
+  release:
+    types: [created]
+
+# Add permissions needed for release asset uploads
+permissions:
+  contents: write
+
+jobs:
+  update-release-notes:
+    name: Update Release Notes
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate Changelog
+        id: changelog
+        uses: infocus7/changelog-files-action@v2.0.1
+        with:
+          release-tag-name: ${{ github.event.release.tag_name }}
+          changelog-directory: changelogs
+      - uses: actions/download-artifact@v4
+        with:
+          name: changelog
+      - name: Update Release Notes
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO_NAME: ${{ github.repository }}
+          RELEASE_ID: ${{ github.event.release.id }}
+        run: |
+          changelog_content=$(jq -Rs . < changelog_output.md) # Convert the changelog to JSON so we can send it.
+          curl -L -X PATCH \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            "https://api.github.com/repos/$REPO_NAME/releases/$RELEASE_ID" \
+            -d "{\"body\": $changelog_content}"
+
+  release-binaries:
+    name: Release Binaries
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        platform:
+          - os: linux
+            arch: amd64
+            pack: true
+          - os: linux
+            arch: arm64
+            pack: true
+            # disable packing for darwin as it's not supported by upx (as of 4.2.4)
+          - os: darwin
+            arch: amd64
+            pack: false
+          - os: darwin
+            arch: arm64
+            pack: false
+          - os: windows
+            arch: amd64
+            pack: true
+          - os: windows
+            arch: arm64
+            pack: false
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Binary
+        shell: bash
+        env:
+          GOOS: ${{ matrix.platform.os }}
+          GOARCH: ${{ matrix.platform.arch }}
+          VERSION: ${{ github.event.release.tag_name }}
+        run: |
+          # if pack is true, use build-and-pack target (which compresses the binary), otherwise use build target
+          if [ "${{ matrix.platform.pack }}" = "true" ]; then
+            make build-and-pack
+          else
+            make build
+          fi
+      - name: Upload Binary Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: imp-${{ matrix.platform.os }}-${{ matrix.platform.arch }}
+          path: _output/${{ github.event.release.tag_name }}
+      - name: Upload asset to GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.event.release.tag_name }}
+          name: imp-${{ matrix.platform.os }}-${{ matrix.platform.arch }}
+          files: _output/${{ github.event.release.tag_name }}/imp-${{ matrix.platform.os }}-${{ matrix.platform.arch }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

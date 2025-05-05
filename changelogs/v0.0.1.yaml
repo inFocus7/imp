@@ -1,0 +1,7 @@
+new-feature:
+- support converting (some) audio files
+- support converting (some) video files
+- add single-frame extraction from video
+
+ci:
+- add release workflow
